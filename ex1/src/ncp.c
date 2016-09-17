@@ -70,7 +70,7 @@ main (int argc, char **argv)
     }
 
   // grab CLI
-  int loss_rate = (int) argv[1];
+  int loss_rate = (int) strtol(argv[1], NULL, 0);
   char *source_file_name = argv[2];
   char *dest_file_name = argv[3];
   char *host_name = argv[4];
@@ -126,15 +126,27 @@ main (int argc, char **argv)
   FD_ZERO (&dummy_mask);
   FD_SET (sr, &mask);
 
+packet working_packet;
+packet* working_packet_ptr = &working_packet;
+int working_packet_type;
+int working_packet_size;
+int working_packet_index;
   // main app loop
-  while (1)
-    {
+  while (1){
+   
+/*STATE_0 sends a hello then waits for (1) A Hello back.  (2) a busy.  (3) time to run out.*/
       if (current_state == STATE_0)	//needs strcmp instead.  int compare is better
 	{
-
-	  sendto (ss, input_buf, strlen (input_buf), 0,
+working_packet_type = 4;//Hello packet
+working_packet_size = MAX_DATA_SIZE;
+working_packet_index = 0;
+packet_maker(working_packet_ptr,working_packet_type, working_packet_index, working_packet_size,(void*)working_packet_ptr);
+	  sendto (ss, (char *)working_packet_ptr ,MAX_MSG_LEN, 0,
 		  (struct sockaddr *) &send_addr, sizeof (send_addr));
-	}
+
+/*	  sendto (ss, input_buf, strlen (input_buf), 0,
+		  (struct sockaddr *) &send_addr, sizeof (send_addr));
+*/	}
       else if (current_state == STATE_1)
 	{
 	  // do state_1 stuff
@@ -192,8 +204,8 @@ main (int argc, char **argv)
 
 /*send pointer to block in window array.  Then format that block as a packet ready to send.*/
 void
-packet_maker (packet * x, int packet_type, int index, int size,
-	      char *data_buffer)
+packet_maker (packet * x, int packet_type, int index, int size,void *data_buffer)
+
 {
 
   if (packet_type == 0)
@@ -224,6 +236,12 @@ packet_maker (packet * x, int packet_type, int index, int size,
   else
     {				//handle malformed packet_type
     }
-
-
 }
+
+void read_packet_header(char *x, int * packet_type, int* size, int* index){//This just provides header info
+*packet_type = (((int*)x)[0] & 0xE0000000)>>29;
+*size =  (((int*)x)[0] & 0x1FFF0000)>>16;
+*index = (((int*)x)[0] & 0x0000FFFF);
+}
+
+
