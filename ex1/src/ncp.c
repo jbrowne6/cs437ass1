@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -16,15 +17,46 @@
 #define TIMEOUT_SEC 1
 #define TIMEOUT_USEC 0
 #define MAX_DATA_SIZE 1396
-#define STATE_0 "state0"
-#define STATE_1 "state1"
-#define MASK_MSG_TYPE 0x3
-#define MASK_MSG_SIZE 0x
+#define STATE_0 0
+#define STATE_1 1
+
+//packet header protocols
+#define PACKET_TYPE_DATA 0x1
+#define PACKET_TYPE_HELLO 0x2
+#define PACKET_TYPE_BUSY 0x3
+#define PACKET_TYPE_ACK 0x4
+#define PACKET_TYPE_NACK 0x5
+#define PACKET_TYPE_FINAL 0x6
+#define PACKET_TYPE_START_BIT 28
+#define PACKET_SIZE_START_BIT 16
+#define PACKET_ID_START_BIT 0
+
 
 typedef struct {
-	char header[4];
+	int32_t header;
 	char data[MAX_DATA_SIZE];
 } packet ;
+
+
+int get_packet_type(int32_t *packet_header)
+{
+	return (*packet_header >> PACKET_TYPE_START_BIT);
+}
+
+void set_packet_type(packet *packet, int type)
+{
+	packet->header |= (type << PACKET_TYPE_START_BIT);
+}
+
+void set_packet_size(packet *packet, int size)
+{
+	packet->header |= (size << PACKET_SIZE_START_BIT);
+}
+
+void set_packet_id(packet *packet, int id)
+{
+	packet->header |= (id << PACKET_ID_START_BIT);
+}
 
 
 int main(int argc, char **argv)
@@ -119,9 +151,17 @@ int main(int argc, char **argv)
     {
     	if (current_state == STATE_0)
     	{
+    		packet hello_packet;
+    		set_packet_type(&hello_packet, PACKET_TYPE_HELLO);
 
-			sendto( ss, input_buf, strlen(input_buf), 0,
-				(struct sockaddr *)&send_addr, sizeof(send_addr) );
+    		sendto( ss, input_buf, strlen(input_buf), 0,
+    						(struct sockaddr *)&send_addr, sizeof(send_addr) );
+    		temp_mask = mask;
+			timeout.tv_sec = TIMEOUT_SEC;
+			timeout.tv_usec = TIMEOUT_USEC;
+			num = select( FD_SETSIZE, &temp_mask, &dummy_mask, &dummy_mask, &timeout);
+
+
     	}
     	else if (current_state == STATE_1)
     	{
